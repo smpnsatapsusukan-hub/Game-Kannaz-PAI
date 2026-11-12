@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KANNAZ Petualangan Pesawat PAI Kelas 2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Comic Sans MS','Segoe UI',sans-serif}
+body{margin:0;background:linear-gradient(180deg,#0b1d3a,#123a6b 60%,#1b5e20);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#fff}
+#game{position:relative;width:min(96vw,520px);height:min(92vh,760px);border-radius:22px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);background:linear-gradient(180deg,#0b1d3a,#123a6b)}
+canvas{display:block;width:100%;height:100%}
+.screen{position:absolute;inset:0;background:rgba(4,20,45,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px}
+.hidden{display:none}
+h1{font-size:30px;color:#ffd54f;text-shadow:0 3px 0 #b26a00}
+h2{color:#80deea;font-size:20px}
+p{font-size:14px;line-height:1.5;color:#e3f2fd}
+input,select{width:100%;max-width:300px;padding:12px;border-radius:14px;border:3px solid #4fc3f7;font-size:16px;font-weight:800;text-align:center;outline:none}
+button{background:linear-gradient(180deg,#ffb300,#fb8c00);border:0;color:#4e2600;font-weight:900;font-size:16px;padding:13px 22px;border-radius:16px;cursor:pointer;box-shadow:0 5px 0 #b26a00;transition:.15s}
+button:active{transform:translateY(4px);box-shadow:none}
+button.small{font-size:12px;padding:8px 12px;box-shadow:0 3px 0 #b26a00}
+.hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:6px;font-weight:900;font-size:13px;pointer-events:none}
+.hud div{background:rgba(0,0,0,.45);padding:6px 10px;border-radius:12px;border:2px solid rgba(255,255,255,.25)}
+.question{position:absolute;top:52px;left:10px;right:10px;background:rgba(255,255,255,.94);color:#0d47a1;font-weight:900;font-size:15px;padding:10px;border-radius:14px;text-align:center;pointer-events:none;line-height:1.35}
+.msg{position:absolute;bottom:14px;left:10px;right:10px;text-align:center;font-weight:900;font-size:15px;color:#fff;pointer-events:none}
+.badge{font-size:44px}
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="cv"></canvas>
+
+  <div class="screen" id="menu">
+    <div class="badge">✈️🕌⭐</div>
+    <h1>KANNAZ</h1>
+    <h2>Petualangan Pesawat PAI</h2>
+    <p>Terbangkan pesawatmu, tembak jawaban yang benar, dan selesaikan misi PAI Kelas 2 Semester 1!</p>
+    <input id="nameInput" placeholder="Tulis namamu di sini" maxlength="18">
+    <select id="levelSelect">
+      <option value="0">Bab 1 — Ayo Belajar Al-Qur'an</option>
+      <option value="1">Bab 2 — Mengenal Allah Swt.</option>
+      <option value="2">Bab 3 — Perilaku Terpuji</option>
+      <option value="3">Bab 4 — Ayo Bisa Salat</option>
+      <option value="4">Bab 5 — Keteladanan Nabi Nuh a.s.</option>
+    </select>
+    <button onclick="startGame()">🚀 Mulai Petualangan</button>
+    <button class="small" onclick="toggleSound()" id="soundBtn">🔊 Suara: ON</button>
+    <p>Geser layar / gunakan tombol ← → untuk bergerak.<br>Klik atau tekan Spasi untuk menembak.</p>
+  </div>
+
+  <div class="screen hidden" id="result">
+    <div class="badge" id="resultIcon">🏆</div>
+    <h1 id="resultTitle">Misi Selesai!</h1>
+    <p id="resultText"></p>
+    <button onclick="backToMenu()">🏠 Menu Utama</button>
+    <button class="small" onclick="startGame()">🔁 Ulangi Misi</button>
+  </div>
+
+  <div class="hud hidden" id="hud">
+    <div>👦 <span id="playerName">Anak</span></div>
+    <div>⭐ <span id="score">0</span></div>
+    <div>❤️ <span id="lives">3</span></div>
+    <div>🎯 <span id="qNum">1/4</span></div>
+  </div>
+  <div class="question hidden" id="questionBox"></div>
+  <div class="msg hidden" id="msg"></div>
+</div>
+
+<script>
+const LEVELS=[
+ {title:"Ayo Belajar Al-Qur'an",icon:'📖',questions:[
+  {q:'Surah yang kita hafal pada Bab 1 adalah Surah…',opts:['An-Nas','Al-Fatihah','Al-Ikhlas'],a:0},
+  {q:'Surah An-Nas terdiri dari berapa ayat?',opts:['3 ayat','6 ayat','10 ayat'],a:1},
+  {q:'Kita berlindung kepada…',opts:['Setan','Allah Swt.','Bintang'],a:1},
+  {q:'Ilmu tentang tempat keluar huruf disebut…',opts:['Makharijul huruf','Rukun salat','Wudhu'],a:0}]},
+ {title:'Mengenal Allah Swt.',icon:'🌟',questions:[
+  {q:'Allah Maha Memelihara adalah…',opts:['Al-Hafiz','Al-Wali','Al-Khabir'],a:0},
+  {q:'Allah Maha Melindungi adalah…',opts:['Al-Alim','Al-Wali','Al-Hafiz'],a:1},
+  {q:'Allah Maha Mengetahui adalah…',opts:['Al-Khabir','Al-Hafiz','Al-Alim'],a:2},
+  {q:'Allah Maha Teliti adalah…',opts:['Al-Khabir','Al-Wali','Al-Alim'],a:0}]},
+ {title:'Perilaku Terpuji',icon:'🤝',questions:[
+  {q:'Jika teman kesulitan, sebaiknya kita…',opts:['Menolong','Menertawakan','Mengabaikan'],a:0},
+  {q:'Berbicara kepada orang lain sebaiknya dengan…',opts:['Kata kasar','Kata lembut','Berteriak'],a:1},
+  {q:'Tidak berbohong disebut sikap…',opts:['Jujur','Sombong','Iri'],a:0},
+  {q:'Menyayangi sesama adalah perilaku…',opts:['Terpuji','Tidak baik','Dilarang'],a:0}]},
+ {title:'Ayo Bisa Salat',icon:'🕌',questions:[
+  {q:'Panggilan untuk menunaikan salat disebut…',opts:['Azan','Ikamah','Takbir'],a:0},
+  {q:'Panggilan segera mendirikan salat disebut…',opts:['Azan','Ikamah','Doa'],a:1},
+  {q:'Salat fardu dalam sehari ada…',opts:['3 waktu','5 waktu','7 waktu'],a:1},
+  {q:'Gerakan salat setelah rukuk adalah…',opts:['Sujud','Duduk','Berdiri'],a:0}]},
+ {title:'Keteladanan Nabi Nuh a.s.',icon:'🚢',questions:[
+  {q:'Nabi yang membangun kapal besar adalah Nabi…',opts:['Nuh a.s.','Musa a.s.','Isa a.s.'],a:0},
+  {q:'Nabi Nuh a.s. mengajak umatnya menyembah…',opts:['Berhala','Allah Swt.','Matahari'],a:1},
+  {q:'Sikap Nabi Nuh a.s. saat menghadapi tantangan adalah…',opts:['Sabar','Marah','Menyerah'],a:0},
+  {q:'Nabi Nuh a.s. membuat kapal karena perintah…',opts:['Raja','Allah Swt.','Teman'],a:1}]}
+];
+
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let W,H,plane={x:0,y:0,w:64,h:64},bullets=[],bubbles=[],stars=[],keys={},touchX=null;
+let state='menu',level=0,qIndex=0,score=0,lives=3,soundOn=true,correctBubbles=[],wrongBubbles=[],anim=0;
+
+function resize(){
+ const r=document.getElementById('game').getBoundingClientRect();
+ W=cv.width=r.width;H=cv.height=r.height;
+ plane.x=W/2;plane.y=H-90;
+ stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+1}));
+}
+window.addEventListener('resize',resize);
+
+function beep(freq,dur,type='sine',vol=.16){
+ if(!soundOn)return;
+ const c=new (window.AudioContext||window.webkitAudioContext)();
+ const o=c.createOscillator(),g=c.createGain();
+ o.type=type;o.frequency.value=freq;g.gain.value=vol;
+ o.connect(g);g.connect(c.destination);o.start();
+ g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);
+ o.stop(c.currentTime+dur);
+}
+const shootSound=()=>beep(880,.08,'square',.08);
+const goodSound=()=>{beep(660,.1);setTimeout(()=>beep(990,.18),100)};
+const badSound=()=>beep(160,.25,'sawtooth',.12);
+const winSound=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.18),i*130));
+const loseSound=()=>[400,300,200].forEach((f,i)=>setTimeout(()=>beep(f,.25,'sawtooth',.14),i*160));
+
+function toggleSound(){
+ soundOn=!soundOn;
+ document.getElementById('soundBtn').textContent=soundOn?'🔊 Suara: ON':'🔇 Suara: OFF';
+}
+
+function startGame(){
+ const name=document.getElementById('nameInput').value.trim()||'Anak';
+ level=+document.getElementById('levelSelect').value;
+ document.getElementById('playerName').textContent=name;
+ qIndex=0;score=0;lives=3;state='play';bullets=[];bubbles=[];correctBubbles=[];wrongBubbles=[];
+ document.getElementById('menu').classList.add('hidden');
+ document.getElementById('result').classList.add('hidden');
+ document.getElementById('hud').classList.remove('hidden');
+ document.getElementById('questionBox').classList.remove('hidden');
+ document.getElementById('msg').classList.remove('hidden');
+ resize();loadQuestion();loop();
+}
+
+function backToMenu(){
+ state='menu';
+ document.getElementById('menu').classList.remove('hidden');
+ document.getElementById('result').classList.add('hidden');
+ document.getElementById('hud').classList.add('hidden');
+ document.getElementById('questionBox').classList.add('hidden');
+ document.getElementById('msg').classList.add('hidden');
+}
+
+function loadQuestion(){
+ const L=LEVELS[level],Q=L.questions[qIndex];
+ document.getElementById('questionBox').textContent=L.icon+' '+Q.q;
+ document.getElementById('qNum').textContent=(qIndex+1)+'/'+L.questions.length;
+ bubbles=[];
+ const positions=[.25,.5,.75];
+ Q.opts.forEach((opt,i)=>{
+  bubbles.push({x:W*positions[i],y:-50-i*70,r:44,text:opt,correct:i===Q.a,speed:.55+Math.random()*.35});
+ });
+ document.getElementById('msg').textContent='Tembak jawaban yang benar!';
+}
+
+function nextQuestion(){
+ qIndex++;
+ if(qIndex>=LEVELS[level].questions.length){finish(true);return;}
+ loadQuestion();
+}
+
+function finish(win){
+ state='over';
+ document.getElementById('hud').classList.add('hidden');
+ document.getElementById('questionBox').classList.add('hidden');
+ document.getElementById('msg').classList.add('hidden');
+ document.getElementById('result').classList.remove('hidden');
+ if(win){
+  winSound();document.getElementById('resultIcon').textContent='🏆';
+  document.getElementById('resultTitle').textContent='Misi Berhasil!';
+  document.getElementById('resultText').innerHTML='Hebat, <b>'+document.getElementById('playerName').textContent+'</b>!<br>Nilai: <b>'+score+'</b><br>Kamu telah menyelesaikan '+LEVELS[level].title+'.';
+ }else{
+  loseSound();document.getElementById('resultIcon').textContent='💫';
+  document.getElementById('resultTitle').textContent='Coba Lagi!';
+  document.getElementById('resultText').innerHTML='Jangan menyerah, <b>'+document.getElementById('playerName').textContent+'</b>!<br>Nilai: <b>'+score+'</b><br>Coba lagi misi '+LEVELS[level].title+'.';
+ }
+}
+
+function shoot(){
+ if(state!=='play')return;
+ bullets.push({x:plane.x,y:plane.y-34,vy:-9});
+ shootSound();
+}
+
+function update(){
+ anim+=.03;
+ stars.forEach(s=>{s.y+=s.s;if(s.y>H)s.y=0});
+ if(state!=='play')return;
+ if(keys.ArrowLeft||keys.a)plane.x-=7;
+ if(keys.ArrowRight||keys.d)plane.x+=7;
+ if(touchX!==null)plane.x+=(touchX-plane.x)*.18;
+ plane.x=Math.max(38,Math.min(W-38,plane.x));
+ bullets.forEach(b=>b.y+=b.vy);
+ bullets=bullets.filter(b=>b.y>-20);
+ bubbles.forEach(b=>b.y+=b.speed);
+ bubbles=bubbles.filter(b=>b.y<H+60);
+
+ bullets.forEach(b=>{
+  bubbles.forEach(bl=>{
+   if(!bl.hit&&Math.hypot(b.x-bl.x,b.y-bl.y)<bl.r+6){
+    b.dead=true;bl.hit=true;
+    if(bl.correct){
+     goodSound();score+=25;
+     document.getElementById('score').textContent=score;
+     document.getElementById('msg').textContent='Benar! +25 poin ⭐';
+     bubbles=[];setTimeout(nextQuestion,700);
+    }else{
+     badSound();lives--;
+     document.getElementById('lives').textContent=lives;
+     document.getElementById('msg').textContent='Jawaban belum tepat. Coba lagi! 🤔';
+     if(lives<=0)finish(false);
+    }
+   }
+  });
+ });
+ bullets=bullets.filter(b=>!b.dead);
+}
+
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ ctx.fillStyle='#fff';
+ stars.forEach(s=>{ctx.globalAlpha=.7;ctx.fillRect(s.x,s.y,s.s,s.s)});
+ ctx.globalAlpha=1;
+ // moon
+ ctx.fillStyle='#fff9c4';ctx.beginPath();ctx.arc(W-60,80,28,0,7);ctx.fill();
+ // clouds
+ ctx.fillStyle='rgba(255,255,255,.16)';
+ for(let i=0;i<4;i++){ctx.beginPath();ctx.ellipse((i*140+anim*30)%W,120+i*35,55,20,0,0,7);ctx.fill();}
+ // bubbles
+ bubbles.forEach(b=>{
+  ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);
+  ctx.fillStyle=b.correct?'rgba(129,199,132,.9)':'rgba(255,183,77,.9)';
+  ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.stroke();
+  ctx.fillStyle='#08306b';ctx.font='bold 14px Comic Sans MS';ctx.textAlign='center';
+  const words=b.text.split(' ');let line='',lines=[];
+  words.forEach(w=>{if(ctx.measureText(line+w).width>70){lines.push(line);line=w+' '}else line+=w+' '});
+  lines.push(line.trim());
+  lines.forEach((t,i)=>ctx.fillText(t,b.x,b.y-6+i*16));
+ });
+ // bullets
+ ctx.fillStyle='#ffeb3b';
+ bullets.forEach(b=>{ctx.beginPath();ctx.ellipse(b.x,b.y,5,12,0,0,7);ctx.fill()});
+ // plane
+ ctx.save();ctx.translate(plane.x,plane.y);
+ ctx.font='46px serif';ctx.textAlign='center';ctx.fillText('✈️',0,16);
+ ctx.restore();
+ if(state==='play')requestAnimationFrame(loop);
+}
+
+function loop(){update();draw()}
+
+document.addEventListener('keydown',e=>{
+ keys[e.key]=true;
+ if(e.code==='Space'){e.preventDefault();shoot()}
+});
+document.addEventListener('keyup',e=>keys[e.key]=false);
+cv.addEventListener('pointerdown',e=>{touchX=e.offsetX*(W/cv.clientWidth);shoot()});
+cv.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')touchX=e.offsetX*(W/cv.clientWidth)});
+cv.addEventListener('pointerup',()=>touchX=null);
+resize();
+</script>
+</body>
+</html>
